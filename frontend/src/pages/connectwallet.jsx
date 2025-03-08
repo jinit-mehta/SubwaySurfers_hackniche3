@@ -118,34 +118,10 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
-const CONTRACT_ADDRESS = 0x8e960522FD200A98fe3f969A6BB52D3aA4990108;
+const CONTRACT_ADDRESS = 0xed5566203450d13a746a04fD76F0393e1F446F15;
 const ABI = [
 	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "_ipfsImageHash",
-				"type": "string"
-			}
-		],
-		"name": "addWalletProvider",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_providerId",
-				"type": "uint256"
-			}
-		],
+		"inputs": [],
 		"name": "connectWallet",
 		"outputs": [],
 		"stateMutability": "nonpayable",
@@ -155,71 +131,16 @@ const ABI = [
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "user",
 				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "providerName",
-				"type": "string"
 			}
 		],
 		"name": "WalletConnected",
 		"type": "event"
 	},
 	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "providerId",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "ipfsImageHash",
-				"type": "string"
-			}
-		],
-		"name": "WalletProviderAdded",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_providerId",
-				"type": "uint256"
-			}
-		],
-		"name": "getWalletProvider",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -227,7 +148,7 @@ const ABI = [
 				"type": "address"
 			}
 		],
-		"name": "isConnected",
+		"name": "connectedWallets",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -239,43 +160,25 @@ const ABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "providerCount",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
 			}
 		],
-		"name": "walletProviders",
+		"name": "isWalletConnected",
 		"outputs": [
 			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "ipfsImageHash",
-				"type": "string"
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
 		"type": "function"
 	}
-]
+];
 
 const ConnectWallet = () => {
   const [walletAddress, setWalletAddress] = useState(null);

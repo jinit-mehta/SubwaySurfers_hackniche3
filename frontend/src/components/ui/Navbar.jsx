@@ -52,36 +52,52 @@ const Navbar = () => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Remove automatic wallet connection request
+    checkWalletConnection();
   }, []);
 
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("MetaMask is not installed. Please install MetaMask.");
-      return;
+  const checkWalletConnection = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        console.log("Connected Wallet:", address);
+        setWalletAddress(address);
+
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        const connected = await contract.isWalletConnected(address);
+        setIsConnected(connected);
+        console.log("Is Wallet Connected in Contract:", connected);
+      } catch (error) {
+        console.error("Error checking wallet connection:", error);
+      }
     }
+  };
 
-    try {
-      console.log("Requesting wallet connection...");
-      
-      // Explicitly request account access
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await window.ethereum.request({ method: "eth_requestAccounts" });
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        console.log("Requesting wallet connection...");
+        await window.ethereum.request({ method: "eth_requestAccounts" });
 
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      console.log("Wallet Connected:", address);
-      setWalletAddress(address);
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        console.log("Wallet Connected:", address);
+        setWalletAddress(address);
 
-      const contract = new ethers.Contract(contractAddress, contractABI, signer);
-      const tx = await contract.connectWallet();
-      console.log("Transaction Sent:", tx.hash);
-      await tx.wait();
-      console.log("Wallet successfully registered in contract!");
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+        const tx = await contract.connectWallet();
+        console.log("Transaction Sent:", tx.hash);
+        await tx.wait(); // Wait for confirmation
+        console.log("Wallet successfully registered in contract!");
 
-      setIsConnected(true);
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
+        setIsConnected(true);
+      } catch (error) {
+        console.error("Error connecting wallet:", error);
+      }
+    } else {
+      alert("MetaMask is not installed. Please install MetaMask.");
     }
   };
 
@@ -125,3 +141,6 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
+
+

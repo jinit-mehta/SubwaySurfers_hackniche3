@@ -1,160 +1,348 @@
-// pages/create-project.js
-import { useState, useEffect } from 'react';
+'use client';
+import { useState } from 'react';
 import { ethers } from 'ethers';
-import { connectWallet, createProject } from '../utils/contract'; // Import blockchain functions
+import axios from 'axios';
 import { Button } from '../components/ui/Button';
 
-const CreateProject = () => {
-  const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    fundingGoal: '',
-    duration: '30',
-    description: '',
-    milestones: [{ title: '', description: '', deadline: '' }]
-  });
+// Smart Contract Details (Replace with your deployed contract address)
+const contractAddress = "0x5EDAfB9595cd63E132CE7eCF568EAef7b27406D4"; 
 
-  useEffect(() => {
-    const loadBlockchain = async () => {
-      try {
-        console.log("Loading blockchain...");
-        const blockchain = await connectWallet(); 
-        if (blockchain) {
-          setContract(blockchain.contract);
-          setAccount(await blockchain.signer.getAddress()); // ✅ Await the getAddress call
+// Embedded ABI (Ensure this matches your deployed contract)
+const contractABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_category",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_fundingGoal",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_duration",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_description",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_imageIPFS",
+				"type": "string"
+			},
+			{
+				"components": [
+					{
+						"internalType": "string",
+						"name": "title",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "description",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "deadline",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct Crowdfunding.Milestone[]",
+				"name": "_milestones",
+				"type": "tuple[]"
+			}
+		],
+		"name": "createProject",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "projectId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "category",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "fundingGoal",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "duration",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "description",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "imageIPFS",
+				"type": "string"
+			}
+		],
+		"name": "ProjectCreated",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "projectCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "projects",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "category",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "fundingGoal",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "duration",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "description",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "imageIPFS",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+const CreateProject = () => {
+    const [walletAddress, setWalletAddress] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        title: '',
+        category: '',
+        fundingGoal: '',
+        duration: '30',
+        description: '',
+        image: null,
+        milestones: [{ title: '', description: '', deadline: '' }]
+    });
+
+    // Connect MetaMask Wallet
+    const connectWallet = async () => {
+        if (typeof window.ethereum === 'undefined') {
+            alert('Please install MetaMask!');
+            return;
         }
-      } catch (error) {
-        console.error("Blockchain connection error:", error);
-      }
+
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const address = await signer.getAddress();
+            setWalletAddress(address);
+        } catch (error) {
+            console.error("Wallet connection failed:", error);
+        }
     };
 
-    loadBlockchain();
-  }, []);
+    // Upload image to IPFS using Pinata
+    const uploadToIPFS = async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
 
-  const handleAddMilestone = () => {
-    setFormData(prev => ({
-      ...prev,
-      milestones: [...prev.milestones, { title: '', description: '', deadline: '' }]
-    }));
-  };
+        const pinataApiKey = "b55244bc1d05ba588036";  // 🔹 Replace with your Pinata API Key
+        const pinataSecretApiKey = "d58c6419dd8d57b409931903a04d93bebdf7ea094b367acb96bef858e17cec9a"; // 🔹 Replace with your Pinata Secret Key
 
-  const handleMilestoneChange = (index, field, value) => {
-    const newMilestones = formData.milestones.map((milestone, i) => {
-      if (i === index) {
-        return { ...milestone, [field]: value };
-      }
-      return milestone;
-    });
-    setFormData(prev => ({ ...prev, milestones: newMilestones }));
-  };
+        try {
+            const res = await axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                    "pinata_api_key": pinataApiKey,
+                    "pinata_secret_api_key": pinataSecretApiKey
+                }
+            });
+            return `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`;
+        } catch (error) {
+            console.error("IPFS Upload Error:", error);
+            return null;
+        }
+    };
 
-  const handleSubmit = async (e) => {
+    // Handle form submission
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!contract) return alert("Contract not connected");
 
-    const success = await createProject(
-      formData.title,
-      formData.category,
-      formData.fundingGoal,
-      formData.duration,
-      formData.description,
-      formData.milestones
-    );
-
-    if (success) {
-      alert("Project created successfully!");
-      setFormData({ title: '', category: '', fundingGoal: '', duration: '30', description: '', milestones: [{ title: '', description: '', deadline: '' }] });
-    } else {
-      alert("Project creation failed!");
+    if (!walletAddress) {
+        alert("Please connect your wallet before submitting!");
+        return;
     }
-  };
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="bg-white rounded-lg shadow-sm p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Create Your Project</h1>
-        {account ? <p>Connected: {account}</p> : <p>Not Connected</p>}
-      <Button onClick={() => console.log("Smart contract instance:", contract)}>Check Contract</Button>
+    if (!formData.image) {
+        alert("Please upload an image!");
+        return;
+    }
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900">Basic Information</h2>
+    setLoading(true);
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Project Title</label>
-              <input type="text" value={formData.title} onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+    try {
+        // Upload image to IPFS
+        const imageURI = await uploadToIPFS(formData.image);
+        if (!imageURI) {
+            alert("Image upload failed!");
+            setLoading(false);
+            return;
+        }
+
+        const milestones = formData.milestones.map(m => ({
+          title: m.title.trim() || "Untitled",
+          description: m.description.trim() || "No description",
+          deadline: Math.floor(new Date(m.deadline).getTime() / 1000) || 0
+      }));      
+
+        // Interact with smart contract
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+        const tx = await contract.createProject(
+          formData.title,
+          formData.category,
+          ethers.parseUnits(formData.fundingGoal, "ether"),
+          parseInt(formData.duration),
+          formData.description,
+          imageURI,
+          milestones // ✅ Now passing an array of structs
+      );      
+
+        await tx.wait();
+        alert("Campaign added successfully!");
+
+        setFormData({
+            title: '',
+            category: '',
+            fundingGoal: '',
+            duration: '30',
+            description: '',
+            image: null,
+            milestones: [{ title: '', description: '', deadline: '' }]
+        });
+    } catch (error) {
+        console.error("Transaction Failed:", error);
+        alert("Campaign submission failed!");
+    } finally {
+        setLoading(false);
+    }
+};
+
+
+    return (
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="bg-white rounded-lg shadow-sm p-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-8">Create Your Campaign</h1>
+                
+                {!walletAddress ? (
+                    <Button onClick={connectWallet} variant="outline" size="lg" className="mb-4">
+                        Connect Wallet
+                    </Button>
+                ) : (
+                    <p className="text-green-600 font-medium mb-4">Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</p>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-8">
+                    <input type="text" placeholder="Project Title" className="input" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                    <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="input">
+                        <option value="">Select Category</option>
+                        <option value="technology">Technology</option>
+                        <option value="environment">Environment</option>
+                        <option value="social">Social Impact</option>
+                        <option value="creative">Creative</option>
+                    </select>
+                    <input type="number" placeholder="Funding Goal (ETH)" className="input" value={formData.fundingGoal} onChange={e => setFormData({ ...formData, fundingGoal: e.target.value })} />
+                    <textarea placeholder="Project Description" className="input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                    <input type="file" accept="image/*" className="input" onChange={e => setFormData({ ...formData, image: e.target.files[0] })} />
+                    <Button type="submit" size="lg" disabled={loading}>{loading ? "Submitting..." : "Submit Project"}</Button>
+                </form>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Category</label>
-              <select value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                <option value="">Select a category</option>
-                <option value="technology">Technology</option>
-                <option value="environment">Environment</option>
-                <option value="social">Social Impact</option>
-                <option value="creative">Creative</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Funding Goal (ETH)</label>
-                <input type="number" value={formData.fundingGoal} onChange={(e) => setFormData(prev => ({ ...prev, fundingGoal: e.target.value }))} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Campaign Duration (Days)</label>
-                <select value={formData.duration} onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                  <option value="30">30 days</option>
-                  <option value="60">60 days</option>
-                  <option value="90">90 days</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Project Description</label>
-              <textarea rows={6} value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-            </div>
-          </div>
-
-          {/* Milestones */}
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Project Milestones</h2>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddMilestone}>Add Milestone</Button>
-            </div>
-
-            {formData.milestones.map((milestone, index) => (
-              <div key={index} className="space-y-4 p-6 bg-gray-50 rounded-lg">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Milestone {index + 1} Title</label>
-                  <input type="text" value={milestone.title} onChange={(e) => handleMilestoneChange(index, 'title', e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea rows={3} value={milestone.description} onChange={(e) => handleMilestoneChange(index, 'description', e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Deadline</label>
-                  <input type="date" value={milestone.deadline} onChange={(e) => handleMilestoneChange(index, 'deadline', e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-end space-x-4">
-            <Button variant="outline" size="lg">Save as Draft</Button>
-            <Button type="submit" size="lg">Submit Project</Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default CreateProject;
