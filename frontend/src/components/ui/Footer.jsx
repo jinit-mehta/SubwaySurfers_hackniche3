@@ -7,7 +7,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
-            <span className="text-2xl font-bold text-blue-600">MilestoneFund</span>
+            <span className="text-2xl font-bold text-blue-600">TrustChain</span>
             <p className="mt-4 text-gray-600">
               Empowering creators and innovators through decentralized crowdfunding.
             </p>
@@ -58,7 +58,7 @@ const Footer = () => {
         
         <div className="mt-8 border-t border-gray-200 pt-8">
           <p className="text-base text-gray-400 text-center">
-            © {new Date().getFullYear()} MilestoneFund. All rights reserved.
+            © {new Date().getFullYear()} TrustChain. All rights reserved.
           </p>
         </div>
       </div>
